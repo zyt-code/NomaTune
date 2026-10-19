@@ -117,7 +117,7 @@ fun NavGraphBuilder.navigationBuilder(
     onClearUpdateBadge: () -> Unit = {},
 ) {
     composable(Screens.Home.route) {
-        HomeScreen(navController)
+        MusicSourcesScreen(navController)
     }
     composable(
         Screens.Library.route,

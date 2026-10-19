@@ -53,7 +53,9 @@ sealed class Screens(
     )
 
     companion object {
-        val MainScreens = listOf(Home, Search, MoodAndGenres, Library)
-        val TvMainScreens = listOf(Home, Search, Library)
+        // The fork intentionally exposes only the source manager and local library. Legacy online
+        // destinations remain compile-time compatibility code while their callers are migrated.
+        val MainScreens = listOf(Home, Library)
+        val TvMainScreens = listOf(Home, Library)
     }
 }

@@ -8,7 +8,9 @@
 
   **Stream. Save. Loop. Repeat.**
 
-  A modern Android music player with YouTube Music integration, local file playback, synced lyrics, offline downloads, and a clean Material 3 Expressive interface.
+  This fork keeps NomaTune's local playback, synced lyrics, downloads, scrobbling, and Material 3 Expressive interface while replacing user-facing built-in online providers with a restricted MusicFree plug-in layer and `music1.json` subscriptions.
+
+  > This remains GPL-3.0 software derived from [Shahdullah/NomaTune](https://github.com/Shahdullah/NomaTune). Original copyright notices, history and license are retained. See [MUSICFREE_FORK.md](MUSICFREE_FORK.md) for architecture, security policy, compatibility and current limitations.
 
   [![License: GPL v3](https://img.shields.io/badge/License-GPL_v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
   [![Platform](https://img.shields.io/badge/platform-Android-green.svg)](https://www.android.com)
@@ -24,8 +26,8 @@
   ## ✨ Features
 
   ### 🎧 Playback
-  - Ad-free streaming with background listening
-  - Multiple account support with quick switching
+  - Local and MusicFree-source playback architecture with background listening
+  - HTTPS `music1.json` subscription import and private plug-in storage
   - Local file & playlist support
   - Fast startup, lightweight performance
   - EBU R128 loudness normalization
@@ -38,8 +40,7 @@
   - AI translation & romanization
   - Music recognition (Shazam-style)
   - Real-time listening statistics
-  - Import playlists from Spotify
-  - YouTube Music account sync
+  - Source-qualified metadata ready for MusicFree search/playback adapters
   - Last.fm scrobbling
   - ListenBrainz history sync
   - Discord rich presence

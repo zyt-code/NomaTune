@@ -92,7 +92,9 @@ import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.MoreExecutors
+import com.shahdullah.nomatune.extensions.metadata
 import com.shahdullah.nomatune.innertube.YouTube
+import com.shahdullah.nomatune.musicfree.toSourceTrack
 import com.shahdullah.nomatune.innertube.models.YouTubeClient
 import com.shahdullah.nomatune.innertube.models.SongItem
 import com.shahdullah.nomatune.lyrics.LyricsPreloadManager
@@ -5310,12 +5312,48 @@ private fun onMediaItemTransitionInternal() {
             )
         }
 
+    private fun resolveMusicFreePlayback(mediaId: String): com.shahdullah.nomatune.musicfree.ResolvedPlayback? {
+        com.shahdullah.nomatune.musicfree.MusicFreePlaybackCache.get(mediaId)?.let { return it }
+        if (!mediaId.startsWith("musicfree:")) return null
+        val metadata = runBlocking(Dispatchers.Main.immediate) {
+            (player.currentMediaItem?.takeIf { it.mediaId == mediaId }
+                ?: player.findNextMediaItemById(mediaId))
+                ?.metadata
+        } ?: return null
+        val track = metadata.toSourceTrack() ?: return null
+        return runBlocking(Dispatchers.IO) {
+            runCatching { com.shahdullah.nomatune.musicfree.AndroidMusicFreeManager.get(this@MusicService).resolve(track) }
+                .onFailure { Timber.tag("MusicService").w(it, "MusicFree playback resolve failed for %s", mediaId) }
+                .getOrNull()
+        }
+    }
+
     private fun resolvePlaybackDataSpec(
         dataSpec: DataSpec,
         allowCacheShortCircuit: Boolean,
     ): DataSpec {
+        dataSpec.key?.let { mediaId ->
+            resolveMusicFreePlayback(mediaId)?.let { playback ->
+                return dataSpec.buildUpon()
+                    .setUri(playback.url)
+                    .setHttpRequestHeaders(dataSpec.httpRequestHeaders + playback.headers)
+                    .build()
+            }
+        }
         if (dataSpec.uri.shouldBypassYouTubeResolver()) {
-            return dataSpec
+            val mediaId = dataSpec.key
+            val plugInHeaders = mediaId?.let { id ->
+                runBlocking(Dispatchers.Main.immediate) {
+                    (player.currentMediaItem?.takeIf { it.mediaId == id }
+                        ?: player.findNextMediaItemById(id))
+                        ?.metadata
+                        ?.playbackHeaders
+                        .orEmpty()
+                }
+            }.orEmpty()
+            return if (plugInHeaders.isEmpty()) dataSpec else dataSpec.buildUpon()
+                .setHttpRequestHeaders(dataSpec.httpRequestHeaders + plugInHeaders)
+                .build()
         }
         val mediaId = dataSpec.key ?: return dataSpec
         val storedFormat = runBlocking(Dispatchers.IO) {

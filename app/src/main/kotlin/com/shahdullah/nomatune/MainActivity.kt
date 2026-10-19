@@ -210,7 +210,6 @@ import com.shahdullah.nomatune.constants.PlayerDesignStyleKey
 import com.shahdullah.nomatune.constants.RemindAfterKey
 import com.shahdullah.nomatune.constants.SYSTEM_DEFAULT
 import com.shahdullah.nomatune.constants.SearchSource
-import com.shahdullah.nomatune.constants.SearchSourceKey
 import com.shahdullah.nomatune.constants.NomaTuneOnboardingCompletedKey
 import com.shahdullah.nomatune.constants.StopMusicOnTaskClearKey
 import com.shahdullah.nomatune.constants.UseSystemFontKey
@@ -295,7 +294,6 @@ import com.shahdullah.nomatune.utils.rememberEnumPreference
 import com.shahdullah.nomatune.utils.rememberPreference
 import com.shahdullah.nomatune.utils.reportException
 import com.shahdullah.nomatune.utils.setAppLocale
-import com.shahdullah.nomatune.viewmodels.HomeViewModel
 import com.shahdullah.nomatune.viewmodels.NetworkBannerViewModel
 import com.shahdullah.nomatune.viewmodels.NewsViewModel
 import java.util.Locale
@@ -791,11 +789,8 @@ class MainActivity : ComponentActivity() {
 
                     val navController = rememberNavController()
                     val coroutineScope = rememberCoroutineScope()
-                    val homeViewModel: HomeViewModel = hiltViewModel()
                     val networkBannerViewModel: NetworkBannerViewModel = hiltViewModel()
                     val newsViewModel: NewsViewModel = hiltViewModel()
-                    val allLocalItems by homeViewModel.allLocalItems.collectAsState()
-                    val allYtItems by homeViewModel.allYtItems.collectAsState()
                     val networkBannerState by networkBannerViewModel.bannerState.collectAsStateWithLifecycle()
                     val hasUnreadNews by newsViewModel.hasUnreadNews.collectAsStateWithLifecycle()
                     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -852,7 +847,9 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    var searchSource by rememberEnumPreference(SearchSourceKey, SearchSource.ONLINE)
+                    // Built-in online providers are intentionally unreachable in this fork.
+                    // Search remains local until MusicFree search is connected end-to-end.
+                    val searchSource = SearchSource.LOCAL
 
                     val searchBarFocusRequester = remember { FocusRequester() }
                     val tvRailFocusRequester = remember { FocusRequester() }
@@ -863,17 +860,7 @@ class MainActivity : ComponentActivity() {
                         searchBarFocusRequester.requestFocus()
                     }
 
-                    val onSearch: (String) -> Unit = {
-                        if (it.isNotEmpty()) {
-                            onActiveChange(false)
-                            navController.navigate(onlineSearchResultRoute(it))
-                            if (!pauseSearchHistory) {
-                                database.query {
-                                    insert(SearchHistory(query = it))
-                                }
-                            }
-                        }
-                    }
+                    val onSearch: (String) -> Unit = { /* LocalSearchScreen reacts to query. */ }
 
                     var openSearchImmediately: Boolean by remember {
                         mutableStateOf(intent?.action == ACTION_SEARCH)
@@ -893,9 +880,6 @@ class MainActivity : ComponentActivity() {
                                     !active
                         }
 
-                    val shouldShowHomeShuffleButton =
-                        currentRoute == Screens.Home.route &&
-                            (allLocalItems.isNotEmpty() || allYtItems.isNotEmpty())
                     val shouldShowLibraryCreatePlaylistButton =
                         currentRoute == Screens.Library.route
 
@@ -1573,12 +1557,6 @@ class MainActivity : ComponentActivity() {
                                                             }
                                                         }
                                                     }
-                                                    IconButton(onClick = { navController.navigate("new_release") }) {
-                                                        Icon(
-                                                            painter = painterResource(R.drawable.new_release),
-                                                            contentDescription = stringResource(R.string.new_release_albums)
-                                                        )
-                                                    }
                                                     IconButton(onClick = { navController.navigate("settings") }) {
                                                         BadgedBox(badge = {
                                                             if (
@@ -1682,22 +1660,6 @@ class MainActivity : ComponentActivity() {
                                                                     contentDescription = null,
                                                                 )
                                                             }
-                                                        }
-                                                        IconButton(
-                                                            onClick = {
-                                                                searchSource =
-                                                                    if (searchSource == SearchSource.ONLINE) SearchSource.LOCAL else SearchSource.ONLINE
-                                                            },
-                                                        ) {
-                                                            Icon(
-                                                                painter = painterResource(
-                                                                    when (searchSource) {
-                                                                        SearchSource.LOCAL -> R.drawable.library_music
-                                                                        SearchSource.ONLINE -> R.drawable.language
-                                                                    },
-                                                                ),
-                                                                contentDescription = null,
-                                                            )
                                                         }
                                                     }
                                                 }
@@ -1827,72 +1789,11 @@ class MainActivity : ComponentActivity() {
                                                 fabContentDescription = if (shouldShowLibraryCreatePlaylistButton) {
                                                     stringResource(R.string.create_playlist)
                                                 } else "",
-                                                onShuffleClick = if (shouldShowHomeShuffleButton) {
-                                                    {
-                                                        val useLocalSource = when {
-                                                            allLocalItems.isNotEmpty() && allYtItems.isNotEmpty() -> Random.nextFloat() < 0.5f
-                                                            allLocalItems.isNotEmpty() -> true
-                                                            else -> false
-                                                        }
-
-                                                        coroutineScope.launch(Dispatchers.Main) {
-                                                            if (useLocalSource) {
-                                                                when (val luckyItem = allLocalItems.random()) {
-                                                                    is Song -> {
-                                                                        playerConnection?.playQueue(
-                                                                            YouTubeQueue.radio(luckyItem.toMediaMetadata())
-                                                                        )
-                                                                    }
-
-                                                                    is Album -> {
-                                                                        val albumWithSongs = withContext(Dispatchers.IO) {
-                                                                            database.albumWithSongs(luckyItem.id).first()
-                                                                        }
-
-                                                                        albumWithSongs?.let {
-                                                                            playerConnection?.playQueue(LocalAlbumRadio(it))
-                                                                        }
-                                                                    }
-
-                                                                    is Artist -> Unit
-                                                                    is Playlist -> Unit
-                                                                }
-                                                            } else {
-                                                                when (val luckyItem = allYtItems.random()) {
-                                                                    is SongItem -> {
-                                                                        playerConnection?.playQueue(
-                                                                            YouTubeQueue.radio(luckyItem.toMediaMetadata())
-                                                                        )
-                                                                    }
-
-                                                                    is AlbumItem -> {
-                                                                        playerConnection?.playQueue(
-                                                                            YouTubeAlbumRadio(luckyItem.playlistId)
-                                                                        )
-                                                                    }
-
-                                                                    is ArtistItem -> {
-                                                                        luckyItem.radioEndpoint?.let {
-                                                                            playerConnection?.playQueue(YouTubeQueue(it))
-                                                                        }
-                                                                    }
-
-                                                                    is PlaylistItem -> {
-                                                                        luckyItem.playEndpoint?.let {
-                                                                            playerConnection?.playQueue(YouTubeQueue.playlist(it))
-                                                                        }
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                } else null,
-                                                shuffleIconRes = if (shouldShowHomeShuffleButton) R.drawable.shuffle else null,
-                                                shuffleContentDescription = if (shouldShowHomeShuffleButton) stringResource(R.string.shuffle) else "",
-                                                onMusicRecognitionClick = if (shouldShowHomeShuffleButton) {
-                                                    { navController.navigate(MusicRecognitionRoute) }
-                                                } else null,
-                                                musicRecognitionContentDescription = if (shouldShowHomeShuffleButton) stringResource(R.string.music_recognition) else "",
+                                                onShuffleClick = null,
+                                                shuffleIconRes = null,
+                                                shuffleContentDescription = "",
+                                                onMusicRecognitionClick = null,
+                                                musicRecognitionContentDescription = "",
                                                 isSelected = { screen ->
                                                     navBackStackEntry?.destination?.hierarchy?.any { it.route == screen.route } ==
                                                         true

@@ -34,6 +34,11 @@ data class MediaMetadata(
     val liked: Boolean = false,
     val likedDate: LocalDateTime? = null,
     val inLibrary: LocalDateTime? = null,
+    val sourceId: String? = null,
+    val sourceTrackId: String? = null,
+    val playbackHeaders: Map<String, String> = emptyMap(),
+    /** Opaque MusicFree fields needed to resolve the track again after process restart. */
+    val sourceExtra: Map<String, String> = emptyMap(),
 ) : Serializable {
     companion object {
         private const val serialVersionUID = 1L

@@ -41,14 +41,6 @@ fun buildSettingsGroups(
                 title = stringResource(R.string.settings),
                 items = listOf(
                     SettingsItem(
-                        key = "account",
-                        icon = painterResource(R.drawable.account),
-                        title = stringResource(R.string.account),
-                        subtitle = stringResource(R.string.settings_account_subtitle),
-                        accentColor = MaterialTheme.colorScheme.primary,
-                        onClick = { navController.navigate("settings/account") },
-                    ),
-                    SettingsItem(
                         key = "stats",
                         icon = painterResource(R.drawable.stats),
                         title = stringResource(R.string.settings_stats_title),
@@ -104,14 +96,6 @@ fun buildSettingsGroups(
                         accentColor = MaterialTheme.colorScheme.secondary,
                         onClick = { navController.navigate("settings/ai_integration") },
                     ),
-                    SettingsItem(
-                        key = "backup_restore",
-                        icon = painterResource(R.drawable.backup),
-                        title = stringResource(R.string.backup_restore),
-                        subtitle = stringResource(R.string.settings_backup_restore_subtitle),
-                        accentColor = MaterialTheme.colorScheme.primary,
-                        onClick = { navController.navigate("settings/backup_restore") },
-                    ),
                 ),
             ),
         )
@@ -120,36 +104,6 @@ fun buildSettingsGroups(
             SettingsGroup(
                 title = stringResource(R.string.settings_section_player_content),
                 items = buildList {
-                    add(
-                        SettingsItem(
-                            key = "content",
-                            icon = painterResource(R.drawable.language),
-                            title = stringResource(R.string.content),
-                            subtitle = stringResource(R.string.settings_content_subtitle),
-                            accentColor = MaterialTheme.colorScheme.primary,
-                            onClick = { navController.navigate("settings/content") },
-                        ),
-                    )
-                    add(
-                        SettingsItem(
-                            key = "internet",
-                            icon = painterResource(R.drawable.wifi_proxy),
-                            title = stringResource(R.string.internet),
-                            subtitle = stringResource(R.string.settings_internet_subtitle),
-                            accentColor = MaterialTheme.colorScheme.tertiary,
-                            onClick = { navController.navigate("settings/internet") },
-                        ),
-                    )
-                    add(
-                        SettingsItem(
-                            key = "po_token",
-                            icon = painterResource(R.drawable.token),
-                            title = stringResource(R.string.po_token_generation),
-                            subtitle = stringResource(R.string.settings_po_token_subtitle),
-                            accentColor = MaterialTheme.colorScheme.secondary,
-                            onClick = { navController.navigate("settings/po_token") },
-                        ),
-                    )
                     add(
                         SettingsItem(
                             key = "storage",

@@ -132,14 +132,32 @@ constructor(
                 )
                 .setCacheWriteDataSinkFactory(null),
         ) { dataSpec ->
-            val mediaId = dataSpec.key ?: error("No media id")
+            val mediaId = dataSpec.key
+            if (mediaId != null) {
+                com.shahdullah.nomatune.musicfree.MusicFreePlaybackCache.get(mediaId)?.let { playback ->
+                    return@Factory dataSpec.buildUpon()
+                        .setUri(playback.url)
+                        .setHttpRequestHeaders(dataSpec.httpRequestHeaders + playback.headers)
+                        .build()
+                }
+                if (mediaId.startsWith("musicfree:")) {
+                    error("MusicFree download URL expired before the download started")
+                }
+            }
+            val scheme = dataSpec.uri.scheme?.lowercase()
+            if (scheme == "http" || scheme == "https") {
+                // MusicFree URLs are resolved immediately before enqueueing the download. Never
+                // send a provider-qualified plug-in id through the legacy YouTube resolver.
+                return@Factory dataSpec
+            }
+            val resolvedMediaId = mediaId ?: error("No media id")
             val length = if (dataSpec.length >= 0) dataSpec.length else 1
-            if (playerCache.isCached(mediaId, dataSpec.position, length)) {
+            if (playerCache.isCached(resolvedMediaId, dataSpec.position, length)) {
                 return@Factory dataSpec
             }
             val lowDataModeActive = context.isLowDataModeActive()
             val requestedAudioQuality = resolveDownloadAudioQuality(lowDataModeActive)
-            val streamCacheKey = buildSongUrlCacheKey(mediaId, requestedAudioQuality)
+            val streamCacheKey = buildSongUrlCacheKey(resolvedMediaId, requestedAudioQuality)
             val authFingerprint = YouTube.currentPlaybackAuthState().fingerprint
             songUrlCache[streamCacheKey]
                 ?.takeIf {
@@ -153,14 +171,14 @@ constructor(
             val playbackData = runBlocking(Dispatchers.IO) {
                 context.retryWithoutPlaybackLoginContext {
                     YTPlayerUtils.playerResponseForDownload(
-                        mediaId,
+                        resolvedMediaId,
                         audioQuality = requestedAudioQuality,
                         connectivityManager = connectivityManager,
                         networkMetered = lowDataModeActive,
                     )
                 }
             }.getOrThrow()
-            persistPlaybackMetadata(mediaId, playbackData)
+            persistPlaybackMetadata(resolvedMediaId, playbackData)
 
             val streamUrl = playbackData.streamUrl
 

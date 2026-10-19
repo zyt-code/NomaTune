@@ -134,6 +134,7 @@ import com.shahdullah.nomatune.constants.SpeedDialSongIdsKey
 import com.shahdullah.nomatune.innertube.YouTube
 import com.shahdullah.nomatune.innertube.models.WatchEndpoint
 import com.shahdullah.nomatune.models.MediaMetadata
+import com.shahdullah.nomatune.musicfree.toSourceTrack
 import com.shahdullah.nomatune.playback.EqCapabilities
 import com.shahdullah.nomatune.playback.EqProfile
 import com.shahdullah.nomatune.playback.EqProfilesPayload
@@ -751,21 +752,33 @@ fun PlayerMenu(
                                 },
                                 modifier =
                                     Modifier.clickable {
-                                        database.transaction {
-                                            insert(mediaMetadata)
-                                        }
-                                        val downloadRequest =
-                                            DownloadRequest
-                                                .Builder(mediaMetadata.id, mediaMetadata.id.toUri())
+                                        coroutineScope.launch {
+                                            val downloadUri = if (
+                                                mediaMetadata.sourceId != null && mediaMetadata.sourceTrackId != null
+                                            ) {
+                                                val track = mediaMetadata.toSourceTrack()
+                                                    ?: error("MusicFree track is missing source identity")
+                                                com.shahdullah.nomatune.musicfree.AndroidMusicFreeManager
+                                                    .get(context)
+                                                    .resolve(track)
+                                                    .url
+                                                    .toUri()
+                                            } else {
+                                                mediaMetadata.id.toUri()
+                                            }
+                                            database.transaction { insert(mediaMetadata) }
+                                            val downloadRequest = DownloadRequest
+                                                .Builder(mediaMetadata.id, downloadUri)
                                                 .setCustomCacheKey(mediaMetadata.id)
                                                 .setData(mediaMetadata.title.toByteArray())
                                                 .build()
-                                        DownloadService.sendAddDownload(
-                                            context,
-                                            ExoDownloadService::class.java,
-                                            downloadRequest,
-                                            false,
-                                        )
+                                            DownloadService.sendAddDownload(
+                                                context,
+                                                ExoDownloadService::class.java,
+                                                downloadRequest,
+                                                false,
+                                            )
+                                        }
                                     },
                                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                             )
